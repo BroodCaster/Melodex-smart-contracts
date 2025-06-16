@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: NONE
 pragma solidity ^0.8.17;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
@@ -21,12 +21,12 @@ contract DutchAuction is ReentrancyGuard, Ownable {
         uint256 duration; // Duration of the auction in seconds
         uint256 startTime; // Start time of the auction
         bool sold; // Indicates if the FT has been sold
-        Bid[] bids; // Array of bids placed in the auction
     }
 
     
 
     mapping(uint16 => Auction) public auctions; // Mapping of auction ID to Auction details
+    mapping(uint16 => Bid[]) public bids; // Mapping of auction ID to array of bids
     uint16 public auctionCounter; // Counter for auction IDs
     ERC20 constant public paymentToken = ERC20(0x5FDAF637Aed59B2e6d384d9e84D8ac5cF03c6697); // Address of the payment token (MELS)
 
@@ -61,8 +61,7 @@ contract DutchAuction is ReentrancyGuard, Ownable {
             tokenAddress: tokenAddress,
             duration: duration,
             startTime: block.timestamp+startTime,
-            sold: false,
-            bids: new Bid[](0)
+            sold: false
         });
 
         emit AuctionCreated(auctionCounter, initialPrice, tokenAmount, duration, startTime);
@@ -79,8 +78,7 @@ contract DutchAuction is ReentrancyGuard, Ownable {
         require(amount <= auction.tokenAmount, "Bid amount exceeds available tokens");
         require(amount > 0, "Bid amount must be greater than zero");
 
-        // Store the bid in the array
-        auction.bids.push(Bid({
+        bids[auctionId].push(Bid({
             bidder: msg.sender,
             amount: amount,
             price: price
@@ -91,72 +89,78 @@ contract DutchAuction is ReentrancyGuard, Ownable {
         emit BidPlaced(auctionId, msg.sender, amount, price);
     }
 
-    function finalizeAuction(uint16 auctionId) external onlyOwner {
-        Auction storage auction = auctions[auctionId];
-        require(block.timestamp > auction.startTime + auction.duration, "Auction not ended");
-        require(auction.sold, "Auction not sold");
+    // function finalizeAuction(uint16 auctionId) external onlyOwner {
+    //     Auction storage auction = auctions[auctionId];
+    //     require(block.timestamp > auction.startTime + auction.duration, "Auction not ended");
+    //     require(auction.sold, "Auction not sold");
 
-        Bid[] storage bids = auction.bids;
-        uint256 n = bids.length;
-        for (uint256 i = 0; i < n; i++) {
-            for (uint256 j = 0; j < n - 1 - i; j++) {
-                if (bids[j].price < bids[j + 1].price) {
-                    Bid memory temp = bids[j];
-                    bids[j] = bids[j + 1];
-                    bids[j + 1] = temp;
-                }
-            }
-        }
+    //     uint256 bidCount = auction.bids.length;
+    //     Bid[] memory bidsOffChain = new Bid[](bidCount);
+    //     for (uint256 i = 0; i < bidCount; i++) {
+    //         bidsOffChain[i] = auction.bids[i];
+    //     }
 
-        Bid[] memory winners = new Bid[](auction.bids.length);
-        uint256 totalAmount = 0;
-        uint256 winnerCount = 0;
-        for (uint256 i = 0; i < bids.length; i++) {
-            if (totalAmount + bids[i].amount <= auction.tokenAmount) {
-            winners[winnerCount] = bids[i];
-            totalAmount += bids[i].amount;
-            winnerCount++;
-            } else {
-            break;
-            }
-        }
+    //     // Sort bids by price descending (bubble sort, inefficient for large data, okay for small arrays)
+    //     for (uint256 i = 0; i < bidCount; i++) {
+    //         for (uint256 j = 0; j < bidCount - 1 - i; j++) {
+    //             if (bidsOffChain[j].price < bidsOffChain[j + 1].price) {
+    //                 Bid memory temp = bidsOffChain[j];
+    //                 bidsOffChain[j] = bidsOffChain[j + 1];
+    //                 bidsOffChain[j + 1] = temp;
+    //             }
+    //         }
+    //     }
 
-        // Refund losing bidders
-        for (uint256 i = winnerCount; i < bids.length; i++) {
-            uint256 refund = bids[i].price * bids[i].amount;
-            require(paymentToken.transfer(bids[i].bidder, refund), "Refund to losing bidder failed");
-        }
+    //     Bid[] storage winners = new Bid[](bidCount);
+    //     uint256 totalAmount = 0;
+    //     uint256 winnerCount = 0;
+    //     for (uint256 i = 0; i < bidCount; i++) {
+    //         if (totalAmount + bidsOffChain[i].amount <= auction.tokenAmount) {
+    //             winners[winnerCount] = bidsOffChain[i];
+    //             totalAmount += bidsOffChain[i].amount;
+    //             winnerCount++;
+    //         } else {
+    //             break;
+    //         }
+    //     }
 
-        uint256 minPrice = type(uint256).max;
-        for (uint256 i = 0; i < winnerCount; i++) {
-            if (winners[i].price < minPrice) {
-                minPrice = winners[i].price;
-            }
-        }
+    //     // Refund losing bidders
+    //     for (uint256 i = winnerCount; i < bidCount; i++) {
+    //         uint256 refund = bidsOffChain[i].price * bidsOffChain[i].amount;
+    //         require(paymentToken.transfer(bidsOffChain[i].bidder, refund), "Refund to losing bidder failed");
+    //     }
 
-        // Refund the difference between bid price and minPrice to winners who bid above minPrice
-        for (uint256 i = 0; i < winnerCount; i++) {
-            if (winners[i].price > minPrice) {
-            uint256 refund = (winners[i].price - minPrice) * winners[i].amount;
-            require(paymentToken.transfer(winners[i].bidder, refund), "Refund failed");
-            }
-            winners[i].price = minPrice;
-        }
+    //     // Determine the minimum winning price
+    //     uint256 minPrice = type(uint256).max;
+    //     for (uint256 i = 0; i < winnerCount; i++) {
+    //         if (winners[i].price < minPrice) {
+    //             minPrice = winners[i].price;
+    //         }
+    //     }
 
-        ERC20 token = ERC20(auction.tokenAddress);
+    //     // Refund overpayment to winners
+    //     for (uint256 i = 0; i < winnerCount; i++) {
+    //         if (winners[i].price > minPrice) {
+    //             uint256 refund = (winners[i].price - minPrice) * winners[i].amount;
+    //             require(paymentToken.transfer(winners[i].bidder, refund), "Refund failed");
+    //         }
+    //         winners[i].price = minPrice;
+    //     }
 
-        for (uint256 i = 0; i < winnerCount; i++) {
-            require(token.transfer(winners[i].bidder, winners[i].amount), "Token transfer failed");
-        }
+    //     // Transfer tokens to winners
+    //     ERC20 token = ERC20(auction.tokenAddress);
+    //     for (uint256 i = 0; i < winnerCount; i++) {
+    //         require(token.transfer(winners[i].bidder, winners[i].amount), "Token transfer failed");
+    //     }
 
-        for (uint256 i = 0; i < winnerCount; i++) {
-            require(paymentToken.transfer(auction.auctionOwner, auction.tokenAmount*minPrice), "Token transfer failed");
-        }
+    //     // Transfer collected payment to auction owner
+    //     require(paymentToken.transfer(auction.auctionOwner, minPrice * totalAmount), "Owner payment failed");
 
-        emit AuctionFinalized(auctionId, winners[0].bidder, totalAmount, minPrice);
-        // Clean up the auction
-        delete auctions[auctionId];
-    }
+    //     emit AuctionFinalized(auctionId, winners[0].bidder, totalAmount, minPrice);
+
+    //     // Clean up the auction
+    //     delete auctions[auctionId];
+    // }
 
    function getAuction(uint16 auctionId) external view returns (Auction memory) {
         return auctions[auctionId];

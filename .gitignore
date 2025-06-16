@@ -3,10 +3,12 @@ node_modules
 .states
 test
 ignition
+remix-compiler.config.js
 
 # Hardhat files
 /cache
 /artifacts
+/contracts/artifacts
 
 # TypeChain files
 /typechain
