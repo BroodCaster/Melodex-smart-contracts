@@ -66,20 +66,20 @@ contract DutchAuction is ReentrancyGuard, Ownable {
 
     function bid(uint16 auctionId, uint256 amount, uint256 price) external {
         Auction storage auction = auctions[auctionId];
+        require(auction.auctionOwner != address(0), "Auction does not exist");
         require(block.timestamp <= auction.duration, "Auction ended");
         require(!auction.sold, "Already sold");
         require(price >= auction.initialPrice, "Bid price too low");
         require(amount <= auction.tokenAmount, "Bid amount exceeds available tokens");
         require(amount > 0, "Bid amount must be greater than zero");
-        require(paymentToken.allowance(msg.sender, address(this)) >= price*amount, "Insufficient allowance");
-        require(paymentToken.transferFrom(msg.sender, address(this), price*amount), "Payment failed");
+        require(paymentToken.allowance(msg.sender, address(this)) >= price * amount, "Insufficient allowance");
+        require(paymentToken.transferFrom(msg.sender, address(this), price * amount), "Payment failed");
 
-         bids[auctionId].push(Bid({
+        bids[auctionId].push(Bid({
             bidder: msg.sender,
             amount: amount,
             price: price
         }));
-        
 
         emit BidPlaced(auctionId, msg.sender, amount, price);
     }
