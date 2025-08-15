@@ -3,7 +3,6 @@ const { ethers } = require("hardhat");
 async function main() {
 	console.log("Starting deployment and interaction script...");
 
-	// Get signers
 	const [deployer] = await ethers.getSigners();
 	console.log("Deployer address:", deployer.address);
 
@@ -12,7 +11,6 @@ async function main() {
 	const PAYMENT_TOKEN_ADDRESS = "0x004917Aeb11793cB2A0E65cfa733017bB755b0D0";
 
 	// Step 1: Deploy payment token (MELS) - you'll need to replace this with your actual payment token
-	// For this example, I'll assume you have a simple ERC20 token for payments
 	console.log("\n--- Step 1: Connect to Payment Token ---");
 	const MockERC20 = await ethers.getContractFactory(
 		"contracts/ERC20.sol:MELSTestToken"
