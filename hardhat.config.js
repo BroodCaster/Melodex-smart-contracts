@@ -1,5 +1,6 @@
 require("@nomicfoundation/hardhat-toolbox");
 require("dotenv").config();
+require("./scripts/create_auction");
 
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {

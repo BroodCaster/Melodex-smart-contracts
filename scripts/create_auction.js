@@ -1,7 +1,31 @@
-const { ethers } = require("hardhat");
+task("createAuction", "Creates new auction")
+	.addPositionalParam("amount")
+	.addPositionalParam("duration")
+	.setAction(async (taskArgs) => {
+		await main(taskArgs.amount, taskArgs.duration).catch(async (error) => {
+			console.error(error);
+			process.exitCode = 1;
+		});
+	});
 
-async function main() {
+async function main(amount, duration) {
+	let tokenAmount = amount ?? 10000; // default token amount
+	let durationMinutes = duration ?? 30; // default duration in minutes
+
+	if (isNaN(tokenAmount) || tokenAmount <= 0) {
+		console.error("❌ Error: tokenAmount must be a positive number");
+		return;
+	}
+
+	if (isNaN(durationMinutes) || durationMinutes <= 0) {
+		console.error("❌ Error: duration must be a positive number");
+		return;
+	}
+
 	console.log("Starting deployment and interaction script...");
+	console.log(`📋 Parameters:`);
+	console.log(`   - Token Amount: ${tokenAmount}`);
+	console.log(`   - Duration: ${durationMinutes} minutes`);
 
 	const [deployer] = await ethers.getSigners();
 	console.log("Deployer address:", deployer.address);
@@ -73,12 +97,11 @@ async function main() {
 
 	// Step 6: Approve DutchAuction to spend tokens
 	console.log("\n--- Step 6: Approve DutchAuction Contract ---");
-	const approvalAmount = 10000; // Amount of tokens to approve for auction
 	const approveTx = await songToken
 		.connect(deployer)
-		.approve(await dutchAuction.getAddress(), approvalAmount);
+		.approve(await dutchAuction.getAddress(), tokenAmount);
 	await approveTx.wait();
-	console.log(`Approved ${approvalAmount} tokens for DutchAuction contract`);
+	console.log(`Approved ${tokenAmount} tokens for DutchAuction contract`);
 
 	// Verify allowance
 	const allowance = await songToken.allowance(
@@ -91,8 +114,8 @@ async function main() {
 	console.log("\n--- Step 7: Create Auction ---");
 	const auctionParams = {
 		initialPrice: ethers.parseEther("1"), // 1 MELS per token
-		tokenAmount: 100, // Amount of tokens to auction
-		duration: 45 * 60,
+		tokenAmount: tokenAmount, // Amount of tokens to auction
+		duration: durationMinutes * 60,
 		tokenAddress: newTokenAddress,
 	};
 
@@ -135,11 +158,3 @@ async function main() {
 	console.log("- Duration (timestamp):", auction.duration.toString());
 	console.log("- Sold:", auction.sold);
 }
-
-// Error handling
-main()
-	.then(() => process.exit(0))
-	.catch((error) => {
-		console.error("Error in script execution:", error);
-		process.exit(1);
-	});
