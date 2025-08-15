@@ -66,20 +66,21 @@ contract DutchAuction is ReentrancyGuard, Ownable {
 
     function bid(uint16 auctionId, uint256 amount, uint256 price) external {
         Auction storage auction = auctions[auctionId];
-        require(auction.auctionOwner != address(0), "Auction does not exist");
         require(block.timestamp <= auction.duration, "Auction ended");
         require(!auction.sold, "Already sold");
         require(price >= auction.initialPrice, "Bid price too low");
         require(amount <= auction.tokenAmount, "Bid amount exceeds available tokens");
         require(amount > 0, "Bid amount must be greater than zero");
-        require(paymentToken.allowance(msg.sender, address(this)) >= price * amount, "Insufficient allowance");
-        require(paymentToken.transferFrom(msg.sender, address(this), price * amount), "Payment failed");
+        uint256 totalPayment = (price * amount * 110) / 100;
+        require(paymentToken.allowance(msg.sender, address(this)) >= totalPayment, "Insufficient allowance");
+        require(paymentToken.transferFrom(msg.sender, address(this), totalPayment), "Payment failed");
 
-        bids[auctionId].push(Bid({
+         bids[auctionId].push(Bid({
             bidder: msg.sender,
             amount: amount,
             price: price
         }));
+        
 
         emit BidPlaced(auctionId, msg.sender, amount, price);
     }
@@ -91,8 +92,10 @@ contract DutchAuction is ReentrancyGuard, Ownable {
     ) external onlyOwner {
         Auction storage auction = auctions[auctionId];
         require(block.timestamp > auction.duration, "Auction not ended");
-        require(auction.sold, "Auction not sold");
+        require(!auction.sold, "Auction not sold");
 
+        
+        auction.sold = true;
         // Transfer tokens to winners
         ERC20 token = ERC20(auction.tokenAddress);
         for (uint256 i = 0; i < winners.length; i++) {
@@ -102,17 +105,14 @@ contract DutchAuction is ReentrancyGuard, Ownable {
         // Transfer payment to auction owner
         uint256 totalPayment;
         for (uint256 i = 0; i < winners.length; i++) {
-            totalPayment += winners[i].amount * winners[i].price;
+            totalPayment += winners[i].price;
         }
-        require(paymentToken.transfer(auction.auctionOwner, totalPayment), "Payment to auction owner failed");
+        require(paymentToken.transfer(auction.auctionOwner, totalPayment * 10**18), "Payment to auction owner failed");
 
         // Refund non-winning bidders
         for (uint256 i = 0; i < refunders.length; i++) {
-            require(paymentToken.transfer(refunders[i].bidder, refunders[i].amount * refunders[i].price), "Refund to bidder failed");
+            require(paymentToken.transfer(refunders[i].bidder, refunders[i].price * 10**18), "Refund to bidder failed");
         }
-
-        // Clean up the auction
-        delete auctions[auctionId];
     }
 
     function getAuction(uint16 auctionId) external view returns (Auction memory) {
