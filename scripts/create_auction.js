@@ -1,3 +1,6 @@
+const axios = require("axios");
+require("dotenv").config();
+
 task("createAuction", "Creates new auction")
 	.addPositionalParam("amount")
 	.addPositionalParam("duration")
@@ -157,4 +160,41 @@ async function main(amount, duration) {
 	console.log("- Token Address:", auction.tokenAddress);
 	console.log("- Duration (timestamp):", auction.duration.toString());
 	console.log("- Sold:", auction.sold);
+
+	// Step 9: Get accessToken from OAuth help endpoint
+	console.log("\n--- Step 9: Get accessToken from OAuth ---");
+	const oauthResponse = await axios.post(
+		process.env.ADMIN_API_URL + "/oauth/help"
+	);
+	const accessToken = oauthResponse.data.accessToken;
+	console.log("Received accessToken:", accessToken);
+
+	// Step 10: Send auction data to melodex-admin-api
+	console.log("\n--- Step 10: Send Auction Data to API ---");
+	const endDate = new Date(Date.now() + durationMinutes * 60);
+	const pad = (n) => n.toString().padStart(2, "0");
+	const endDateUtc = `${endDate.getUTCFullYear()}-${pad(
+		endDate.getUTCMonth() + 1
+	)}-${pad(endDate.getUTCDate())} ${pad(endDate.getUTCHours())}:${pad(
+		endDate.getUTCMinutes()
+	)}:${pad(endDate.getUTCSeconds())}`;
+
+	const auctionPayload = {
+		externalId: auctionId.toString(),
+		endDateUtc: endDateUtc,
+		tokensOffered: tokenAmount,
+		target: tokenAmount,
+	};
+	const auctionApiResponse = await axios.post(
+		process.env.ADMIN_API_URL + "/auctions",
+		auctionPayload,
+		{
+			headers: {
+				Authorization: `Bearer ${accessToken}`,
+				"Content-Type": "application/json",
+			},
+		}
+	);
+
+	console.log("Auction API response:", auctionApiResponse.data);
 }
