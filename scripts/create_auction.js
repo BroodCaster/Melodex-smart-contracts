@@ -171,13 +171,15 @@ async function main(amount, duration) {
 
 	// Step 10: Send auction data to melodex-admin-api
 	console.log("\n--- Step 10: Send Auction Data to API ---");
-	const endDate = new Date(Date.now() + durationMinutes * 60);
+	const endDate = new Date(Date.now() + durationMinutes * 60 * 1000);
 	const pad = (n) => n.toString().padStart(2, "0");
 	const endDateUtc = `${endDate.getUTCFullYear()}-${pad(
 		endDate.getUTCMonth() + 1
 	)}-${pad(endDate.getUTCDate())} ${pad(endDate.getUTCHours())}:${pad(
 		endDate.getUTCMinutes()
 	)}:${pad(endDate.getUTCSeconds())}`;
+	console.log(endDate);
+	console.log(endDateUtc);
 
 	const auctionPayload = {
 		externalId: auctionId.toString(),
