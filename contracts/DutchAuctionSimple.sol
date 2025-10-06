@@ -28,6 +28,8 @@ contract DutchAuction is ReentrancyGuard, Ownable {
     mapping(uint16 => Auction) public auctions; // Mapping of auction ID to Auction details
     mapping(uint16 => Bid[]) public bids; // Mapping of auction ID to array of bids
     uint16 public auctionCounter; // Counter for auction IDs
+
+    uint8 public constant FEE_PERCENTAGE = 10; // Fee percentage taken by the contract owner
     
 
     event AuctionCreated(uint16 indexed auctionId, uint256 initialPrice, uint16 tokenAmount, uint256 duration);
@@ -102,16 +104,19 @@ contract DutchAuction is ReentrancyGuard, Ownable {
             require(token.transfer(winners[i].bidder, winners[i].amount), "Token transfer to winner failed");
         }
 
-        // Transfer payment to auction owner
+        // Transfer payment to auction owner and fee to contract owner
         uint256 totalPayment;
         for (uint256 i = 0; i < winners.length; i++) {
             totalPayment += winners[i].price;
         }
-        require(paymentToken.transfer(auction.auctionOwner, totalPayment * 10**18), "Payment to auction owner failed");
+        uint256 fee = (totalPayment * FEE_PERCENTAGE) / 100;
+        uint256 ownerAmount = totalPayment - fee;
+        require(paymentToken.transfer(auction.auctionOwner, ownerAmount), "Payment to auction owner failed");
+        require(paymentToken.transfer(owner(), fee), "Fee transfer to contract owner failed");
 
         // Refund non-winning bidders
         for (uint256 i = 0; i < refunders.length; i++) {
-            require(paymentToken.transfer(refunders[i].bidder, refunders[i].price * 10**18), "Refund to bidder failed");
+            require(paymentToken.transfer(refunders[i].bidder, refunders[i].price), "Refund to bidder failed");
         }
     }
 

@@ -33,7 +33,7 @@ async function main(amount, duration) {
 	const [deployer] = await ethers.getSigners();
 	console.log("Deployer address:", deployer.address);
 
-	const DUTCH_AUCTION_ADDRESS = "0xf5E84369c29bEE054Ab3ac53CeA3E162C5352feB";
+	const DUTCH_AUCTION_ADDRESS = "0xE0ed341D2e4dF7ab9b0a2fFC5b70f9b86DBa3C86";
 	const TOKEN_FACTORY_ADDRESS = "0x9b339A98212A026Ef48E028C8b8899a08DbE104c";
 	const PAYMENT_TOKEN_ADDRESS = "0x004917Aeb11793cB2A0E65cfa733017bB755b0D0";
 
